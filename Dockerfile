@@ -96,12 +96,12 @@ ARG ADD_ros_tutorials=1
 ARG ADD_grid_map=0
 
 # for a custom message example
-ARG ADD_example_custom_msgs=0
+ARG ADD_custom_msgs=0
 
 # sanity check:
 RUN echo "ADD_ros_tutorials         = '$ADD_ros_tutorials'"
 RUN echo "ADD_grid_map              = '$ADD_grid_map'"
-RUN echo "ADD_example_custom_msgs   = '$ADD_example_custom_msgs'"
+RUN echo "ADD_custom_msgs   = '$ADD_custom_msgs'"
 
 ###########################
 # 6.1) Add additional ros_tutorials messages and services
@@ -168,14 +168,20 @@ RUN if [[ "$ADD_grid_map" = "1" ]]; then                                        
 #   Note2: Use the same package name for both ROS1 and ROS2.
 #   See https://github.com/ros2/ros1_bridge/blob/master/doc/index.rst
 ######################################
-RUN if [[ "$ADD_example_custom_msgs" = "1" ]]; then                     \
-      git clone https://github.com/TommyChangUMD/custom_msgs.git;       \
+RUN --mount=type=secret,id=gitlab_token \
+    if [[ "$ADD_custom_msgs" = "1" ]]; then                     \
+      mkdir -p /transit_interfaces_ros1/src && cd /transit_interfaces_ros1/src;                           \
+      git clone --single-branch -b noetic https://oauth2:$(cat /run/secrets/gitlab_token)@gitlab.cc-asp.fraunhofer.de/multirobot/planner/transit_interfaces.git;       \
       # Compile ROS1:                                                   \
-      cd /custom_msgs/custom_msgs_ros1;                                 \
+      cd /transit_interfaces_ros1;                                 \
       unset ROS_DISTRO;                                                 \
+      echo "Building ROS1 interface ...";                                    \
       time colcon build --cmake-args -DCMAKE_BUILD_TYPE=Release;        \
       # Compile ROS2:                                                   \
-      cd /custom_msgs/custom_msgs_ros2;                                 \
+      mkdir -p /transit_interfaces_ros2/src && cd /transit_interfaces_ros2/src;                           \
+      git clone --single-branch -b humble https://oauth2:$(cat /run/secrets/gitlab_token)@gitlab.cc-asp.fraunhofer.de/multirobot/planner/transit_interfaces.git;       \
+      cd /transit_interfaces_ros2;                                 \
+      echo "Building ROS2 interface ...";                                    \
       source /opt/ros/humble/setup.bash;                                \
       time colcon build --cmake-args -DCMAKE_BUILD_TYPE=Release;        \
     fi
@@ -208,11 +214,11 @@ RUN                                                                             
       source /opt/ros/humble/setup.bash;                                        \
     fi;                                                                         \
     #                                                                           \
-    if [[ "$ADD_example_custom_msgs" = "1" ]]; then                             \
+    if [[ "$ADD_custom_msgs" = "1" ]]; then                             \
       # Apply ROS1 package overlay                                              \
-      source /custom_msgs/custom_msgs_ros1/install/setup.bash;                  \
+      source /transit_interfaces_ros1/install/setup.bash;                  \
       # Apply ROS2 package overlay                                              \
-      source /custom_msgs/custom_msgs_ros2/install/setup.bash;                  \
+      source /transit_interfaces_ros2/install/setup.bash;                  \
     fi;                                                                         \
     #                                                                           \
     #-------------------------------------                                      \
